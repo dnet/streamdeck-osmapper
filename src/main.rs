@@ -3,8 +3,8 @@ use anyhow::{Result, Context, anyhow};
 use streamdeck::{StreamDeck, TextPosition, TextOptions, Colour};
 use rusttype::{Font, Scale};
 
-const BUTTONS: [&str; 6] = ["fire_hydrant.png", "bicycle-parking.png",
-    "corrosion.png", "bump.png", "szaglocso.png", "stop.png"]; // TODO add speed meter w/ 7seg display
+const BUTTONS: [&str; 7] = ["fire_hydrant.png", "bicycle-parking.png",
+    "corrosion.png", "bump.png", "szaglocso.png", "stop.png", "speed_display.png"];
 
 fn main() -> Result<()> {
     let font_data: &[u8] = include_bytes!("/Users/dnet/Library/Fonts/SourceSansPro-Bold.otf");
