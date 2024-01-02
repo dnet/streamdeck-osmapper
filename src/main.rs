@@ -1,10 +1,21 @@
+use std::time::Duration;
+
 use unbounded_gpsd::{GpsdConnection, types::{TpvResponse, Response}};
 use anyhow::{Result, Context, anyhow};
 use streamdeck::{StreamDeck, TextPosition, TextOptions, Colour};
 use rusttype::{Font, Scale};
+use chrono::{DateTime, Utc};
 
 const BUTTONS: [&str; 7] = ["fire_hydrant.png", "bicycle-parking.png",
     "corrosion.png", "bump.png", "szaglocso.png", "stop.png", "speed_display.png"];
+const TIMEOUT: Duration = Duration::from_millis(10);
+
+struct GpsInfo {
+    lat: f64,
+    lon: f64,
+    time: DateTime<Utc>,
+    speed: f64,
+}
 
 fn main() -> Result<()> {
     let font_data: &[u8] = include_bytes!("/Users/dnet/Library/Fonts/SourceSansPro-Bold.otf");
@@ -17,33 +28,43 @@ fn main() -> Result<()> {
     }
 
     let mut gpsd = GpsdConnection::new("127.0.0.1:2947").map_err(|e| anyhow!(e.to_string()))?;
-    gpsd.set_read_timeout(None).map_err(|e| anyhow!(e.to_string()))?;
+    gpsd.set_read_timeout(Some(TIMEOUT)).map_err(|e| anyhow!(e.to_string()))?;
     let resp = gpsd.get_response().map_err(|e| anyhow!(e.to_string()))?;
     dbg!(&resp);
     gpsd.watch(true).map_err(|e| anyhow!(e.to_string()))?;
 
+    let mut last_fix = None;
     loop {
-        let resp = gpsd.get_response().map_err(|e| anyhow!(e.to_string()))?;
-        let status: String = if let Response::Tpv(tpv) = resp {
-            match tpv {
-                TpvResponse::Fix3D { device, time, mode, time_err, lat, lat_err, lon, lon_err, alt, alt_err, track, track_err, speed, speed_err, climb, climb_err } => format!("{} km/h\n{}", (speed * 3.6).round(), time.format("%H:%M:%S")),
-                TpvResponse::Fix2D { device, time, mode, time_err, lat, lat_err, lon, lon_err, track, track_err, speed, speed_err } => format!("{} km/h\n{}", (speed * 3.6).round(), time.format("%H:%M:%S")),
-                TpvResponse::LatLonOnly { device, time, mode, time_err, lat, lat_err, lon, lon_err, alt, alt_err, track, track_err, speed, speed_err, climb, climb_err } => format!("{} km/h\n{}", (speed.unwrap_or(0.0) * 3.6).round(), time.format("%H:%M:%S")),
-                TpvResponse::NoFix { device, time, mode } => format!("NO FIX\n{}", time.format("%H:%M:%S")),
-                TpvResponse::Nothing { device, time, mode } => time.and_then(|t| Some(t.format("%H:%M:%S").to_string())).unwrap_or_else(|| "Nothing".to_string()),
-                TpvResponse::Dustbin { device, time, mode, time_err, lat, lat_err, lon, lon_err, alt, alt_err, track, track_err, speed, speed_err, climb, climb_err } => time.and_then(|t| Some(t.format("%H:%M:%S").to_string())).unwrap_or_else(|| "Dustbin".to_string()),
+        if let Ok(resp) = gpsd.get_response().map_err(|e| anyhow!(e.to_string())) {
+            if let Response::Tpv(tpv) = resp {
+                match tpv {
+                    TpvResponse::Fix3D { device, time, mode, time_err, lat, lat_err, lon, lon_err, alt, alt_err, track, track_err, speed, speed_err, climb, climb_err } => last_fix = Some(GpsInfo { lat, lon, time, speed }),
+                    TpvResponse::Fix2D { device, time, mode, time_err, lat, lat_err, lon, lon_err, track, track_err, speed, speed_err } => last_fix = Some(GpsInfo { lat, lon, time, speed }),
+                    TpvResponse::LatLonOnly { device, time, mode, time_err, lat, lat_err, lon, lon_err, alt, alt_err, track, track_err, speed, speed_err, climb, climb_err } => if let Some(speed) = speed { last_fix = Some(GpsInfo { lat, lon, time, speed }) },
+                    _ => (),
+                }
             }
-        } else { continue; };
-        sd.set_button_text(10, &font, &TextPosition::Absolute { x: 0, y: 0 }, &status, &TextOptions::new(
-            Colour { r: 0xFF, g: 0x00, b: 0x00 },
-            Colour { r: 0, g: 0, b: 0 },
-            Scale { x: 16.0, y: 16.0 },
-            1.0,
-        ))?;
+            let status = if let Some(ref details) = last_fix {
+                format!("{} km/h\n{}", details.speed * 3.6, details.time.format("%H:%M:%S"))
+            } else {
+                "NO FIX".to_string()
+            };
+            sd.set_button_text(10, &font, &TextPosition::Absolute { x: 0, y: 0 }, &status, &TextOptions::new(
+                Colour { r: 0xFF, g: 0x00, b: 0x00 },
+                Colour { r: 0, g: 0, b: 0 },
+                Scale { x: 16.0, y: 16.0 },
+                1.0,
+            ))?;
+        }
+        let btn = sd.read_buttons(None)?;
+        for (key, image) in BUTTONS.iter().enumerate() {
+            if *btn.get(key).context("button by BUTTONS index")? == 1u8 {
+                // TODO save image with location data, update number of saved items if needed
+            }
+        }
     }
     // TODO watch buttons
     // TODO number of saved items? all / today?
-    //let btn = sd.read_buttons(None)?;
     //dbg!(btn);
     //dbg!(&sd);
     Ok(())
