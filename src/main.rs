@@ -10,6 +10,10 @@ use chrono::{DateTime, Utc};
 const BUTTONS: [&str; 7] = ["fire_hydrant.png", "bicycle-parking.png",
     "corrosion.png", "bump.png", "szaglocso.png", "stop.png", "speed_display.png"];
 const TIMEOUT: Duration = Duration::from_millis(10);
+const TOP_LEFT: TextPosition = TextPosition::Absolute { x: 0, y: 0 };
+const RED: Colour = Colour { r: 0xFF, g: 0x00, b: 0x00 };
+const GREEN: Colour = Colour { r: 0xFF, g: 0x00, b: 0x00 };
+const BLACK: Colour = Colour { r: 0, g: 0, b: 0 };
 
 struct GpsInfo {
     lat: f64,
@@ -21,6 +25,8 @@ struct GpsInfo {
 fn main() -> Result<()> {
     let font_data: &[u8] = include_bytes!("/Users/dnet/Library/Fonts/SourceSansPro-Bold.otf");
     let font: Font<'static> = Font::try_from_bytes(font_data).context("font from bytes")?;
+    let text16 = TextOptions::new(
+        RED, BLACK, Scale { x: 16.0, y: 16.0 }, 1.0);
 
     let db = sqlite::open("db.sqlite3")?;
     db.execute("CREATE TABLE IF NOT EXISTS pois (id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -53,12 +59,7 @@ fn main() -> Result<()> {
             } else {
                 "NO FIX".to_string()
             };
-            sd.set_button_text(10, &font, &TextPosition::Absolute { x: 0, y: 0 }, &status, &TextOptions::new(
-                Colour { r: 0xFF, g: 0x00, b: 0x00 },
-                Colour { r: 0, g: 0, b: 0 },
-                Scale { x: 16.0, y: 16.0 },
-                1.0,
-            ))?;
+            sd.set_button_text(10, &font, &TOP_LEFT, &status, &text16)?;
         }
         if let Some(ref details) = last_fix {
             if let Ok(btn) = sd.read_buttons(Some(TIMEOUT)) {
