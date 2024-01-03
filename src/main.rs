@@ -43,7 +43,7 @@ fn main() -> Result<()> {
                 }
             }
             let status = if let Some(ref details) = last_fix {
-                format!("{} km/h\n{}", details.speed * 3.6, details.time.format("%H:%M:%S"))
+                format!("{} km/h\n{}", (details.speed * 3.6).round(), details.time.format("%H:%M:%S"))
             } else {
                 "NO FIX".to_string()
             };
