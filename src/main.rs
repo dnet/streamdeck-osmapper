@@ -12,7 +12,7 @@ const BUTTONS: [&str; 7] = ["fire_hydrant.png", "bicycle-parking.png",
 const TIMEOUT: Duration = Duration::from_millis(10);
 const TOP_LEFT: TextPosition = TextPosition::Absolute { x: 0, y: 0 };
 const RED: Colour = Colour { r: 0xFF, g: 0x00, b: 0x00 };
-const GREEN: Colour = Colour { r: 0xFF, g: 0x00, b: 0x00 };
+const GREEN: Colour = Colour { r: 0x00, g: 0xFF, b: 0x00 };
 const BLACK: Colour = Colour { r: 0, g: 0, b: 0 };
 
 struct GpsInfo {
