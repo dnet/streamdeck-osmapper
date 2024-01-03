@@ -21,6 +21,12 @@ fn main() -> Result<()> {
     let font_data: &[u8] = include_bytes!("/Users/dnet/Library/Fonts/SourceSansPro-Bold.otf");
     let font: Font<'static> = Font::try_from_bytes(font_data).context("font from bytes")?;
 
+    let db = sqlite::open("db.sqlite3")?;
+    db.execute("CREATE TABLE IF NOT EXISTS pois (id INTEGER PRIMARY KEY AUTOINCREMENT,
+        created DEFAULT CURRENT_TIMESTAMP, poi, lat, lon, gpstime);")?;
+    let insert = "INSERT INTO pois (poi, lat, lon, gpstime) VALUES (?, ?, ?, ?);";
+    let mut statement = db.prepare(insert)?;
+
     let mut sd = StreamDeck::connect(0x0fd9, 0x006d, None)?;
     sd.reset()?;
     for (key, image) in BUTTONS.iter().enumerate() {
@@ -54,14 +60,21 @@ fn main() -> Result<()> {
                 1.0,
             ))?;
         }
-        let btn = sd.read_buttons(None)?;
-        for (key, image) in BUTTONS.iter().enumerate() {
-            if *btn.get(key).context("button by BUTTONS index")? == 1u8 {
-                // TODO save image with location data, update number of saved items if needed
+        if let Some(ref details) = last_fix {
+            if let Ok(btn) = sd.read_buttons(Some(TIMEOUT)) {
+                for (key, image) in BUTTONS.iter().enumerate() {
+                    if *btn.get(key).context("button by BUTTONS index")? == 1u8 {
+                        statement.bind((1, *image))?;
+                        statement.bind((2, details.lat))?;
+                        statement.bind((3, details.lon))?;
+                        statement.bind((4, details.time.timestamp()))?;
+                        statement.next()?;
+                        statement.reset()?;
+                    }
+                }
             }
         }
     }
-    // TODO watch buttons
     // TODO number of saved items? all / today?
     //dbg!(btn);
     //dbg!(&sd);
