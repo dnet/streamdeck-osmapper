@@ -76,7 +76,4 @@ fn main() -> Result<()> {
         }
     }
     // TODO number of saved items? all / today?
-    //dbg!(btn);
-    //dbg!(&sd);
-    Ok(())
 }
