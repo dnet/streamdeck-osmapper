@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use sqlite::State;
 use unbounded_gpsd::{GpsdConnection, types::{TpvResponse, Response}};
 use anyhow::{Result, Context, anyhow};
 use streamdeck::{StreamDeck, TextPosition, TextOptions, Colour};
@@ -67,7 +68,7 @@ fn main() -> Result<()> {
                         statement.bind((2, details.lat))?;
                         statement.bind((3, details.lon))?;
                         statement.bind((4, details.time.timestamp()))?;
-                        statement.next()?;
+                        while statement.next()? != State::Done { }
                         statement.reset()?;
                     }
                 }
