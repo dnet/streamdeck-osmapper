@@ -29,8 +29,6 @@ fn main() -> Result<()> {
 
     let mut gpsd = GpsdConnection::new("127.0.0.1:2947").map_err(|e| anyhow!(e.to_string()))?;
     gpsd.set_read_timeout(Some(TIMEOUT)).map_err(|e| anyhow!(e.to_string()))?;
-    let resp = gpsd.get_response().map_err(|e| anyhow!(e.to_string()))?;
-    dbg!(&resp);
     gpsd.watch(true).map_err(|e| anyhow!(e.to_string()))?;
 
     let mut last_fix = None;
