@@ -33,7 +33,7 @@ fn main() -> Result<()> {
 
     let mut last_fix = None;
     loop {
-        if let Ok(resp) = gpsd.get_response().map_err(|e| anyhow!(e.to_string())) {
+        if let Ok(resp) = gpsd.get_response() {
             if let Response::Tpv(tpv) = resp {
                 match tpv {
                     TpvResponse::Fix3D { device, time, mode, time_err, lat, lat_err, lon, lon_err, alt, alt_err, track, track_err, speed, speed_err, climb, climb_err } => last_fix = Some(GpsInfo { lat, lon, time, speed }),
