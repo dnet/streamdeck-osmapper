@@ -27,11 +27,15 @@ fn main() -> Result<()> {
     let font: Font<'static> = Font::try_from_bytes(font_data).context("font from bytes")?;
     let text16 = TextOptions::new(
         RED, BLACK, Scale { x: 16.0, y: 16.0 }, 1.0);
+    let text32 = TextOptions::new(
+        GREEN, BLACK, Scale { x: 32.0, y: 32.0 }, 1.0);
 
     let db = sqlite::open("db.sqlite3")?;
     db.execute("CREATE TABLE IF NOT EXISTS pois (id INTEGER PRIMARY KEY AUTOINCREMENT,
         created DEFAULT CURRENT_TIMESTAMP, poi, lat, lon, gpstime);")?;
     let mut statement = db.prepare("INSERT INTO pois (poi, lat, lon, gpstime) VALUES (?, ?, ?, ?);")?;
+    let mut count_all = db.prepare("SELECT COUNT(*) AS c FROM pois;")?;
+    let mut count_today = db.prepare("SELECT COUNT(*) AS c FROM pois WHERE date(created) = date();")?;
 
     let mut sd = StreamDeck::connect(0x0fd9, 0x006d, None)?;
     sd.reset()?;
@@ -42,6 +46,8 @@ fn main() -> Result<()> {
     let mut gpsd = GpsdConnection::new("127.0.0.1:2947").map_err(|e| anyhow!(e.to_string()))?;
     gpsd.set_read_timeout(Some(TIMEOUT)).map_err(|e| anyhow!(e.to_string()))?;
     gpsd.watch(true).map_err(|e| anyhow!(e.to_string()))?;
+
+    update_counters(&mut count_all, &mut count_today, &mut sd, &font, &text32)?;
 
     let mut last_fix = None;
     loop {
@@ -71,10 +77,23 @@ fn main() -> Result<()> {
                         statement.bind((4, details.time.timestamp()))?;
                         while statement.next()? != State::Done { }
                         statement.reset()?;
+                        update_counters(&mut count_all, &mut count_today, &mut sd, &font, &text32)?;
                     }
                 }
             }
         }
     }
-    // TODO number of saved items? all / today?
+}
+
+fn update_counters(count_all: &mut sqlite::Statement<'_>, count_today: &mut sqlite::Statement<'_>,
+                   sd: &mut StreamDeck, font: &Font<'_>, text32: &TextOptions) -> Result<()> {
+    if count_all.next()? == State::Row && count_today.next()? == State::Row {
+        let num_all = count_all.read::<i64, _>(0)?;
+        let num_today = count_today.read::<i64, _>(0)?;
+        let status = format!("{num_today}\n{num_all}");
+        sd.set_button_text(11, font, &TOP_LEFT, &status, &text32)?;
+    }
+    count_all.reset()?;
+    count_today.reset()?;
+    Ok(())
 }
