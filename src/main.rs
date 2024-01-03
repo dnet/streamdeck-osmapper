@@ -24,8 +24,7 @@ fn main() -> Result<()> {
     let db = sqlite::open("db.sqlite3")?;
     db.execute("CREATE TABLE IF NOT EXISTS pois (id INTEGER PRIMARY KEY AUTOINCREMENT,
         created DEFAULT CURRENT_TIMESTAMP, poi, lat, lon, gpstime);")?;
-    let insert = "INSERT INTO pois (poi, lat, lon, gpstime) VALUES (?, ?, ?, ?);";
-    let mut statement = db.prepare(insert)?;
+    let mut statement = db.prepare("INSERT INTO pois (poi, lat, lon, gpstime) VALUES (?, ?, ?, ?);")?;
 
     let mut sd = StreamDeck::connect(0x0fd9, 0x006d, None)?;
     sd.reset()?;
