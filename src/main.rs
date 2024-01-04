@@ -7,8 +7,9 @@ use streamdeck::{StreamDeck, TextPosition, TextOptions, Colour};
 use rusttype::{Font, Scale};
 use chrono::{DateTime, Utc};
 
-const BUTTONS: [&str; 7] = ["fire_hydrant.png", "bicycle-parking.png",
-    "corrosion.png", "bump.png", "szaglocso.png", "stop.png", "speed_display.png"];
+const BUTTONS: [&str; 10] = ["fire_hydrant.png", "bicycle-parking.png",
+    "corrosion.png", "bump.png", "szaglocso.png", "stop.png", "speed_display.png",
+    "waste-basket.png", "parking-ticket-vending.png", "kick-scooter-parking.png"];
 const TIMEOUT: Duration = Duration::from_millis(10);
 const TOP_LEFT: TextPosition = TextPosition::Absolute { x: 0, y: 0 };
 const RED: Colour = Colour { r: 0xFF, g: 0x00, b: 0x00 };
