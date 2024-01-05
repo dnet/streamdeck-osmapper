@@ -7,9 +7,10 @@ use streamdeck::{StreamDeck, TextPosition, TextOptions, Colour};
 use rusttype::{Font, Scale};
 use chrono::{DateTime, Utc};
 
-const BUTTONS: [&str; 10] = ["fire_hydrant.png", "bicycle-parking.png",
+const BUTTONS: [&str; 13] = ["fire_hydrant.png", "bicycle-parking.png",
     "corrosion.png", "bump.png", "szaglocso.png", "stop.png", "speed_display.png",
-    "waste-basket.png", "parking-ticket-vending.png", "kick-scooter-parking.png"];
+    "waste-basket.png", "parking-ticket-vending.png", "kick-scooter-parking.png",
+    "bench.png", "hunting-stand.png", "post-box.png"];
 const TIMEOUT: Duration = Duration::from_millis(10);
 const TOP_LEFT: TextPosition = TextPosition::Absolute { x: 0, y: 0 };
 const RED: Colour = Colour { r: 0xFF, g: 0x00, b: 0x00 };
@@ -66,7 +67,7 @@ fn main() -> Result<()> {
             } else {
                 "NO FIX".to_string()
             };
-            sd.set_button_text(10, &font, &TOP_LEFT, &status, &text16)?;
+            sd.set_button_text(13, &font, &TOP_LEFT, &status, &text16)?;
         }
         if let Some(ref details) = last_fix {
             if let Ok(btn) = sd.read_buttons(Some(TIMEOUT)) {
@@ -92,7 +93,7 @@ fn update_counters(count_all: &mut sqlite::Statement<'_>, count_today: &mut sqli
         let num_all = count_all.read::<i64, _>(0)?;
         let num_today = count_today.read::<i64, _>(0)?;
         let status = format!("{num_today}\n{num_all}");
-        sd.set_button_text(11, font, &TOP_LEFT, &status, &text32)?;
+        sd.set_button_text(14, font, &TOP_LEFT, &status, &text32)?;
     }
     count_all.reset()?;
     count_today.reset()?;
