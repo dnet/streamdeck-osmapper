@@ -2,6 +2,7 @@ use std::fs::File;
 use std::{collections::HashMap, time::Duration};
 use std::io::prelude::*;
 
+use configparser::ini::Ini;
 use sqlite::{Connection, State};
 use unbounded_gpsd::{GpsdConnection, types::{TpvResponse, Response}};
 use anyhow::{Result, Context, anyhow};
@@ -57,7 +58,9 @@ fn main() -> Result<()> {
 }
 
 fn dump_mode(output_file: &str, db: Connection) -> Result<()> {
-    let rules = ini::ini!("osm.ini");
+    let mut config = Ini::new();
+    config.set_comment_symbols(&[]);
+    let rules = config.load("osm.ini").map_err(|e| anyhow!(e))?;
     let mut nodes = Vec::new();
     let mut statement = db.prepare("SELECT MIN(lat), MIN(lon), MAX(lat), MAX(lon) FROM pois;")?;
     if statement.next()? == State::Row {
