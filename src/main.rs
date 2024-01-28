@@ -58,7 +58,6 @@ fn main() -> Result<()> {
 
 fn dump_mode(output_file: &str, db: Connection) -> Result<()> {
     let rules = ini::ini!("osm.ini");
-    let mut count_all = db.prepare("SELECT COUNT(*) AS c FROM pois;")?;
     let mut nodes = Vec::new();
     let mut statement = db.prepare("SELECT MIN(lat), MIN(lon), MAX(lat), MAX(lon) FROM pois;")?;
     if statement.next()? == State::Row {
