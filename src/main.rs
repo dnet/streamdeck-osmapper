@@ -1,11 +1,14 @@
-use std::time::Duration;
+use std::fs::File;
+use std::{collections::HashMap, time::Duration};
+use std::io::prelude::*;
 
-use sqlite::State;
+use sqlite::{Connection, State};
 use unbounded_gpsd::{GpsdConnection, types::{TpvResponse, Response}};
 use anyhow::{Result, Context, anyhow};
 use streamdeck::{StreamDeck, TextPosition, TextOptions, Colour};
 use rusttype::{Font, Scale};
 use chrono::{DateTime, Utc};
+use askama::Template;
 
 const BUTTONS: [&str; 13] = ["fire_hydrant.png", "bicycle-parking.png",
     "corrosion.png", "bump.png", "szaglocso.png", "stop.png", "speed_display.png",
@@ -24,7 +27,64 @@ struct GpsInfo {
     speed: f64,
 }
 
+struct Node {
+    lat: String,
+    lon: String,
+    id: String,
+    created: String,
+    rules: Vec<(String, String)>,
+}
+
+#[derive(Template)]
+#[template(path = "osm.xml")]
+struct OsmExport {
+    minlat: String,
+    minlon: String,
+    maxlat: String,
+    maxlon: String,
+    nodes: Vec<Node>,
+}
+
 fn main() -> Result<()> {
+    let mut args = std::env::args();
+    args.next(); // exec
+    let db = sqlite::open("db.sqlite3")?;
+    if let Some(output_file) = args.next() {
+        dump_mode(&output_file, db)
+    } else {
+        streamdeck_mode(db)
+    }
+}
+
+fn dump_mode(output_file: &str, db: Connection) -> Result<()> {
+    let rules = ini::ini!("osm.ini");
+    let mut count_all = db.prepare("SELECT COUNT(*) AS c FROM pois;")?;
+    let mut nodes = Vec::new();
+    let mut statement = db.prepare("SELECT MIN(lat), MIN(lon), MAX(lat), MAX(lon) FROM pois;")?;
+    if statement.next()? == State::Row {
+        let minlat = statement.read::<String, _>(0)?;
+        let minlon = statement.read::<String, _>(1)?;
+        let maxlat = statement.read::<String, _>(2)?;
+        let maxlon = statement.read::<String, _>(3)?;
+        let mut statement = db.prepare("SELECT id, lat, lon, created, poi FROM pois;")?;
+        while statement.next()? == State::Row {
+            nodes.push(Node {
+                id: statement.read::<String, _>(0)?,
+                lat: statement.read::<String, _>(1)?,
+                lon: statement.read::<String, _>(2)?,
+                created: statement.read::<String, _>(3)?,
+                rules: rules[&statement.read::<String, _>(4)?].iter().map(|(k, v)| (k.clone(), v.clone().unwrap())).collect(),
+            });
+        }
+        let export = OsmExport { minlat, minlon, maxlat, maxlon, nodes };
+        let output = export.render()?;
+        let mut file = File::create(output_file)?;
+        file.write_all(output.as_bytes())?;
+    }
+    Ok(())
+}
+
+fn streamdeck_mode(db: Connection) -> Result<()> {
     let font_data: &[u8] = include_bytes!("/Users/dnet/Library/Fonts/SourceSansPro-Bold.otf");
     let font: Font<'static> = Font::try_from_bytes(font_data).context("font from bytes")?;
     let text16 = TextOptions::new(
@@ -32,7 +92,6 @@ fn main() -> Result<()> {
     let text32 = TextOptions::new(
         GREEN, BLACK, Scale { x: 32.0, y: 32.0 }, 1.0);
 
-    let db = sqlite::open("db.sqlite3")?;
     db.execute("CREATE TABLE IF NOT EXISTS pois (id INTEGER PRIMARY KEY AUTOINCREMENT,
         created DEFAULT CURRENT_TIMESTAMP, poi, lat, lon, gpstime);")?;
     let mut statement = db.prepare("INSERT INTO pois (poi, lat, lon, gpstime) VALUES (?, ?, ?, ?);")?;

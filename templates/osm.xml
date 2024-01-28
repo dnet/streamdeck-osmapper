@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='ASCII'?>
+<osm version="0.6" upload="false" generator="streamdeck-osmapper">
+  <bounds minlat="{{ minlat }}" minlon="{{ minlon }}" maxlat="{{ maxlat }}" maxlon="{{ maxlon }}" />
+{%- for node in nodes %}
+  <node id='-{{ node.id }}' lat='{{ node.lat }}' lon='{{ node.lon }}'>
+    <tag k='fixme' v='streamdeck-osmapper #{{ node.id }} @ {{ node.created }}' />
+    {%- for (key, value) in node.rules %}
+    <tag k='{{ key }}' v='{{ value }}' />
+    {%- endfor %}
+  </node>
+{%- endfor %}
+</osm>
