@@ -164,15 +164,19 @@ fn streamdeck_mode(db: Connection) -> Result<()> {
 }
 
 fn refresh_page(page: usize, display: &mut [Option<&&str>; 13], sd: &mut StreamDeck) -> Result<()> {
-    for (key, image) in BUTTONS[page * BUTTONS_PER_PAGE..(page + 1) * BUTTONS_PER_PAGE].iter().enumerate() {
+    let first = page * BUTTONS_PER_PAGE;
+    let next = (page + 1) * BUTTONS_PER_PAGE;
+    let last = std::cmp::min(next, BUTTON_COUNT);
+    for (key, image) in BUTTONS[first..last].iter().enumerate() {
         display[key] = Some(image);
         sd.set_button_file(key as u8, image, &streamdeck::images::ImageOptions::default())?;
     }
-    let last_done = BUTTONS[page * BUTTONS_PER_PAGE..(page + 1) * BUTTONS_PER_PAGE].len();
-    Ok(for key in last_done..BUTTONS_PER_PAGE {
+    let offset = last - first;
+    for key in offset..(offset + next - last) {
         display[key] = None;
         sd.set_button_rgb(key as u8, &BLACK)?;
-    })
+    }
+    Ok(())
 }
 
 fn update_counters(count_all: &mut sqlite::Statement<'_>, count_today: &mut sqlite::Statement<'_>,
