@@ -11,10 +11,14 @@ use rusttype::{Font, Scale};
 use chrono::{DateTime, Utc};
 use askama::Template;
 
-const BUTTONS: [&str; 13] = ["fire_hydrant.png", "bicycle-parking.png",
+const BUTTON_COUNT: usize = 18;
+const BUTTONS_PER_PAGE: usize = 13;
+
+const BUTTONS: [&str; BUTTON_COUNT] = ["fire_hydrant.png", "bicycle-parking.png",
     "corrosion.png", "bump.png", "szaglocso.png", "stop.png", "speed_display.png",
     "waste-basket.png", "parking-ticket-vending.png", "kick-scooter-parking.png",
-    "bench.png", "hunting-stand.png", "post-box.png"];
+    "bench.png", "hunting-stand.png", "post-box.png",
+    "camera.png", "kotras.png", "zebra.png", "taxi.png", "recycling.png"];
 const TIMEOUT: Duration = Duration::from_millis(10);
 const TOP_LEFT: TextPosition = TextPosition::Absolute { x: 0, y: 0 };
 const RED: Colour = Colour { r: 0xFF, g: 0x00, b: 0x00 };
@@ -93,6 +97,9 @@ fn streamdeck_mode(db: Connection) -> Result<()> {
         RED, BLACK, Scale { x: 16.0, y: 16.0 }, 1.0);
     let text32 = TextOptions::new(
         GREEN, BLACK, Scale { x: 32.0, y: 32.0 }, 1.0);
+    let mut page = 0usize;
+    let mut display = [None; BUTTONS_PER_PAGE];
+    let pages = BUTTON_COUNT.div_ceil(BUTTONS_PER_PAGE);
 
     db.execute("CREATE TABLE IF NOT EXISTS pois (id INTEGER PRIMARY KEY AUTOINCREMENT,
         created DEFAULT CURRENT_TIMESTAMP, poi, lat, lon, gpstime);")?;
@@ -102,9 +109,7 @@ fn streamdeck_mode(db: Connection) -> Result<()> {
 
     let mut sd = StreamDeck::connect(0x0fd9, 0x006d, None)?;
     sd.reset()?;
-    for (key, image) in BUTTONS.iter().enumerate() {
-        sd.set_button_file(key as u8, image, &streamdeck::images::ImageOptions::default())?;
-    }
+    refresh_page(page, &mut display, &mut sd)?;
 
     let mut gpsd = GpsdConnection::new("127.0.0.1:2947").map_err(|e| anyhow!(e.to_string()))?;
     gpsd.set_read_timeout(Some(TIMEOUT)).map_err(|e| anyhow!(e.to_string()))?;
@@ -124,7 +129,7 @@ fn streamdeck_mode(db: Connection) -> Result<()> {
                 }
             }
             let status = if let Some(ref details) = last_fix {
-                format!("{} km/h\n{}", (details.speed * 3.6).round(), details.time.format("%H:%M:%S"))
+                format!("{} km/h\n{}\n<<", (details.speed * 3.6).round(), details.time.format("%H:%M:%S"))
             } else {
                 "NO FIX".to_string()
             };
@@ -132,20 +137,42 @@ fn streamdeck_mode(db: Connection) -> Result<()> {
         }
         if let Some(ref details) = last_fix {
             if let Ok(btn) = sd.read_buttons(Some(TIMEOUT)) {
-                for (key, image) in BUTTONS.iter().enumerate() {
-                    if *btn.get(key).context("button by BUTTONS index")? == 1u8 {
-                        statement.bind((1, *image))?;
-                        statement.bind((2, details.lat))?;
-                        statement.bind((3, details.lon))?;
-                        statement.bind((4, details.time.timestamp()))?;
-                        while statement.next()? != State::Done { }
-                        statement.reset()?;
-                        update_counters(&mut count_all, &mut count_today, &mut sd, &font, &text32)?;
+                for (key, image) in display.iter().enumerate() {
+                    if let Some(name) = image {
+                        if *btn.get(key).context("button by BUTTONS index")? == 1u8 {
+                            statement.bind((1, **name))?;
+                            statement.bind((2, details.lat))?;
+                            statement.bind((3, details.lon))?;
+                            statement.bind((4, details.time.timestamp()))?;
+                            while statement.next()? != State::Done { }
+                            statement.reset()?;
+                            update_counters(&mut count_all, &mut count_today, &mut sd, &font, &text32)?;
+                        }
                     }
+                }
+                if *btn.get(13).context("back button")? == 1u8 {
+                    page = if page == 0 { pages - 1 } else { page - 1 };
+                    refresh_page(page, &mut display, &mut sd)?;
+                }
+                if *btn.get(14).context("forward button")? == 1u8 {
+                    page = if page == pages - 1 { 0 } else { page + 1 };
+                    refresh_page(page, &mut display, &mut sd)?;
                 }
             }
         }
     }
+}
+
+fn refresh_page(page: usize, display: &mut [Option<&&str>; 13], sd: &mut StreamDeck) -> Result<()> {
+    for (key, image) in BUTTONS[page * BUTTONS_PER_PAGE..(page + 1) * BUTTONS_PER_PAGE].iter().enumerate() {
+        display[key] = Some(image);
+        sd.set_button_file(key as u8, image, &streamdeck::images::ImageOptions::default())?;
+    }
+    let last_done = BUTTONS[page * BUTTONS_PER_PAGE..(page + 1) * BUTTONS_PER_PAGE].len();
+    Ok(for key in last_done..BUTTONS_PER_PAGE {
+        display[key] = None;
+        sd.set_button_rgb(key as u8, &BLACK)?;
+    })
 }
 
 fn update_counters(count_all: &mut sqlite::Statement<'_>, count_today: &mut sqlite::Statement<'_>,
@@ -153,7 +180,7 @@ fn update_counters(count_all: &mut sqlite::Statement<'_>, count_today: &mut sqli
     if count_all.next()? == State::Row && count_today.next()? == State::Row {
         let num_all = count_all.read::<i64, _>(0)?;
         let num_today = count_today.read::<i64, _>(0)?;
-        let status = format!("{num_today}\n{num_all}");
+        let status = format!("{num_today}\n{num_all}\n>>");
         sd.set_button_text(14, font, &TOP_LEFT, &status, &text32)?;
     }
     count_all.reset()?;
