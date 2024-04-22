@@ -11,14 +11,14 @@ use rusttype::{Font, Scale};
 use chrono::{DateTime, Utc};
 use askama::Template;
 
-const BUTTON_COUNT: usize = 18;
+const BUTTON_COUNT: usize = 19;
 const BUTTONS_PER_PAGE: usize = 13;
 
 const BUTTONS: [&str; BUTTON_COUNT] = ["fire_hydrant.png", "bicycle-parking.png",
     "corrosion.png", "bump.png", "szaglocso.png", "stop.png", "speed_display.png",
     "waste-basket.png", "parking-ticket-vending.png", "kick-scooter-parking.png",
     "bench.png", "hunting-stand.png", "post-box.png",
-    "camera.png", "kotras.png", "zebra.png", "taxi.png", "recycling.png"];
+    "camera.png", "kotras.png", "zebra.png", "taxi.png", "recycling.png", "substation.png"];
 const TIMEOUT: Duration = Duration::from_millis(10);
 const TOP_LEFT: TextPosition = TextPosition::Absolute { x: 0, y: 0 };
 const RED: Colour = Colour { r: 0xFF, g: 0x00, b: 0x00 };
