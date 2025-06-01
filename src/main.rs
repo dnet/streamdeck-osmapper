@@ -131,7 +131,12 @@ fn streamdeck_mode(db: Connection) -> Result<()> {
             let status = if let Some(ref details) = last_fix {
                 format!("{} km/h\n{}\n<<", (details.speed * 3.6).round(), details.time.format("%H:%M:%S"))
             } else {
-                "NO FIX".to_string()
+                if let Some(addr) = dbg!(interfaces::Interface::get_by_name("en0"))?.unwrap()
+                        .addresses.iter().find(|a| a.kind == interfaces::Kind::Ipv4) {
+                    dbg!(addr).addr.unwrap().ip().to_string().replace('.', ".\n")
+                } else {
+                    "NO FIX\nNO ADDR".to_string()
+                }
             };
             sd.set_button_text(13, &font, &TOP_LEFT, &status, &text16)?;
         }
